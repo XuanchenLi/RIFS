@@ -48,9 +48,11 @@ def s_ifs(feature_set, label_set, feature_idx, k, d):
     best_fs = set([])
     decrease_time = 0
     cur_acc = 0.0
+    locs = []
+    res_acc = 0.0
     for idx in range(col_ - k):
         m_acc = 0.0
-        locs = [x for x in range(k, k + idx + 1)]  # 初始化连续特征索引数组，每次多加入一个后继特征
+        locs.append(feature_idx[k+idx])  # 初始化连续特征索引数组，每次多加入一个后继特征
         X = np.array(feature_set)[:, list(np.array(feature_idx)[locs])]  # 根据索引数组构造数据子集
         for i in estimator_list:  # 执行多种分类算法中选出最大准确率
             acc = accuracy(select_estimator(i), X, label_set)
@@ -59,39 +61,32 @@ def s_ifs(feature_set, label_set, feature_idx, k, d):
         if m_acc > cur_acc:  # 当前连续特征子集准确率比上一个子集效果好
             decrease_time = 0  # 重新计数
             best_fs = set(locs)
+            res_acc = m_acc
         else:
             decrease_time += 1  # 当前特征子集效能下降
-            if decrease_time == d + 1:  # 下降次数超过阈值
+            if decrease_time == d:  # 下降次数超过阈值
                 break
         cur_acc = m_acc  # cur_acc为上一子集的准确率
     print(len(best_fs))
-    return best_fs
+    return [best_fs, res_acc]
+
 
 
 # RIFS算法默认d=4, 随机起始位置个数为特征数的一半
 def r_ifs(feature_set, label_set, feature_idx, d):
-    solution = []
+    best_fs = []
+    cur_acc = 0.0
     row_, col_ = feature_set.shape
     k_ = int(col_ * 0.5)-1  # 起始位置个数
     random_loc = random.sample(list(range(1, col_)), k_)  # 获取随机起始位置
     random_loc.append(0)  # 确保0在里面
     for loc in random_loc:  # 从每个随机位置开始选出一个连续特征子集
-        solution.append(s_ifs(feature_set, label_set, feature_idx, loc, d))
-
-    best_fs = solution[0]
-    cur_acc = 0.0
-    for idx in range(0, k_):  # 从得到的多个连续特征子集中选出效能最好的子集
-        m_acc = 0.0
-        for i in estimator_list:
-            acc = accuracy(select_estimator(i),
-                           np.array(feature_set)[:,
-                           solution[idx]],
-                           label_set)
-            if acc > m_acc:
-                m_acc = acc
-        if m_acc > cur_acc:
-            cur_acc = m_acc
-            best_fs = solution[idx]
+        cur_res = s_ifs(feature_set, label_set, feature_idx, loc, d)
+        if cur_res[1] > cur_acc or (cur_res[1] == cur_acc and len(cur_res[0]) < len(best_fs)):
+            print(cur_res[1])
+            cur_acc = cur_res[1]
+            best_fs = cur_res[0]
+            print(best_fs)
 
     return best_fs
 
